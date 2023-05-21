@@ -1,7 +1,50 @@
 from datetime import datetime
 from flask_wtf import Form
 from wtforms import StringField, SelectField, SelectMultipleField, DateTimeField, BooleanField
-from wtforms.validators import DataRequired, AnyOf, URL
+from wtforms.validators import DataRequired, AnyOf, URL, ValidationError, Length
+import enum
+
+
+#----------------------------------------------------------------------------#
+# Enum.
+#----------------------------------------------------------------------------#
+class Genre(enum.Enum):
+  ALTERNATIVE='Alternative'
+  BLUES='Blues'
+  CLASSICAL='Classical'
+  COUNTY='Country'
+  ELECTRONIC='Electronic'
+  FOLK='Folk'
+  FUNK='Funk'
+  HIPHOP='Hip-Hop'
+  HEAVYMETAL='Heavy Metal'
+  INSTRUMENTAL='Instrumental'
+  JAZZ='Jazz'
+  MUSICAL='Musical Theatre'
+  POP='Pop'
+  PUNK='Punk'
+  RANDB='R&B'
+  REGGAE='Reggae'
+  ROCK_N_ROLL='Rock n Roll'
+  SOUL='Soul'
+  OTHER='Other'
+
+# ------------------------
+# Implementing individual phone check
+# ------------------------
+def my_phone_check(form, field):
+    print('The following was forwarded %s' % field.data)
+    format_compliant= ...
+    (field.data[3]=='-')and ...
+    field.data[7]=='-' and ...
+    field.data[0:2].isnumeric() and ...
+    field.data[4:6].isnumeric() and ...
+    field.data[8:12].isnumeric()
+    if not format_compliant:
+        print('Phone Number Format is not compliant')
+        message='Please mind to type number in the following format xxx-xxx-xxxx!'
+        raise ValidationError(message)
+    print('Phone Number Format is compliant')
 
 class ShowForm(Form):
     artist_id = StringField(
@@ -91,27 +134,7 @@ class VenueForm(Form):
     genres = SelectMultipleField(
         # TODO implement enum restriction
         'genres', validators=[DataRequired()],
-        choices=[
-            ('Alternative', 'Alternative'),
-            ('Blues', 'Blues'),
-            ('Classical', 'Classical'),
-            ('Country', 'Country'),
-            ('Electronic', 'Electronic'),
-            ('Folk', 'Folk'),
-            ('Funk', 'Funk'),
-            ('Hip-Hop', 'Hip-Hop'),
-            ('Heavy Metal', 'Heavy Metal'),
-            ('Instrumental', 'Instrumental'),
-            ('Jazz', 'Jazz'),
-            ('Musical Theatre', 'Musical Theatre'),
-            ('Pop', 'Pop'),
-            ('Punk', 'Punk'),
-            ('R&B', 'R&B'),
-            ('Reggae', 'Reggae'),
-            ('Rock n Roll', 'Rock n Roll'),
-            ('Soul', 'Soul'),
-            ('Other', 'Other'),
-        ]
+        choices=[(gName.capitalize(), gMember.value) for gName, gMember in Genre.__members__.items()]
     )
     facebook_link = StringField(
         'facebook_link', validators=[URL()]
@@ -193,37 +216,23 @@ class ArtistForm(Form):
     )
     phone = StringField(
         # TODO implement validation logic for phone 
-        'phone'
+        'phone', validators=[Length(min=12,
+                                    max=12, 
+                                    message='Must not be longer than tewlve letters'),
+                                    my_phone_check,
+                                    DataRequired()]
     )
     image_link = StringField(
         'image_link'
     )
     genres = SelectMultipleField(
+        # TODO? implementing enum restriction
         'genres', validators=[DataRequired()],
-        choices=[
-            ('Alternative', 'Alternative'),
-            ('Blues', 'Blues'),
-            ('Classical', 'Classical'),
-            ('Country', 'Country'),
-            ('Electronic', 'Electronic'),
-            ('Folk', 'Folk'),
-            ('Funk', 'Funk'),
-            ('Hip-Hop', 'Hip-Hop'),
-            ('Heavy Metal', 'Heavy Metal'),
-            ('Instrumental', 'Instrumental'),
-            ('Jazz', 'Jazz'),
-            ('Musical Theatre', 'Musical Theatre'),
-            ('Pop', 'Pop'),
-            ('Punk', 'Punk'),
-            ('R&B', 'R&B'),
-            ('Reggae', 'Reggae'),
-            ('Rock n Roll', 'Rock n Roll'),
-            ('Soul', 'Soul'),
-            ('Other', 'Other'),
-        ]
+        choices=[(gName.capitalize(), gMember.value) for gName, gMember in Genre.__members__.items()]
      )
     facebook_link = StringField(
         # TODO implement enum restriction
+        # Comment moved under wrong function?
         'facebook_link', validators=[URL()]
      )
 
