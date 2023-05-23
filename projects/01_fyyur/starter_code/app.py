@@ -49,7 +49,7 @@ class Venue(db.Model):
     seeking_talent = db.Column(db.Boolean(), default=False)
     website_link = db.Column(db.String())
     seeking_description = db.Column(db.String())
-
+    
 class Artist(db.Model):
     __tablename__ = 'Artist'
 
@@ -127,15 +127,18 @@ def venues():
     countries = db.session.query(Venue).distinct(Venue.city, Venue.state).all()
 
     for country in countries:
-       venues = db.session.query(Venue).filter_by(city=country.city,
-                                                       name=country.name)
+       venues = db.session.query(Venue).filter_by(city=country.city)
        venue_list=[]
        for venue in venues:
-          print("id:%s,name:%s"%(venue.id, venue.name))
+          amount_of_upcoming = db.session.query(Show).filter(
+            (Show.venue_id==venue.id)).filter( 
+              (Show.start_time>datetime.now())).count()
+
           venue_struct={"id": venue.id,
                       "name": venue.name,
-                      "num_upcoming_shows": 0}
+                      "num_upcoming_shows": amount_of_upcoming}
           venue_list.append(venue_struct)
+          print("id:%s,name:%s,upcoming:%s"%(venue.id, venue.name, amount_of_upcoming))
 
        dataElmnt = {"city": country.city, 
                     "state": country.state,
@@ -215,7 +218,7 @@ def show_venue(venue_id):
           GenreAssignment.venue_id==venue_id)
      genres=[]
      for genre_assignment in genre_assignments:
-        genres.append(genre_assignment.genre)
+        genres.append(genre_assignment.genre.value)
      data["genres"] = genres
      data["address"] = venue.address
      data["city"] = venue.city
@@ -223,7 +226,12 @@ def show_venue(venue_id):
      data["phone"] = venue.phone
      data["website_link"] = venue.website_link
      data["facebook_link"] = venue.facebook_link
-     data["seeking_talent"] = venue.seeking_talent
+     data["image_link"] = venue.image_link
+     if venue.seeking_talent:
+       data["seeking_talent"] = True  
+     else:
+       pass
+       # data["seeking_talent"] = False
      data["seeking_description"] = venue.seeking_description     
      data["image_link"] = venue.image_link
 
@@ -284,44 +292,31 @@ def create_venue_submission():
   # init data buffer
   data={
       'name': '', 
-      'city': '', 
-      'state': '',
-      'address': '',
-      'phone': '',
-      'image_link': '',
-      'facebook_link': '',
-      'seeking_talent': False,
-      'website_link': '',
-      'seeking_description': ''}
+      'seeking_talent': False}
 
   try: 
     data['name']=request.form.get('name')
-    data['city']=request.form.get('city')
-    data['state']=request.form.get('state')
-    data['address']=request.form.get('address')
-    data['phone']=request.form.get('phone')
-    data['image_link']=request.form.get('image_link')
-    data['facebook_link']=request.form.get('facebook_link')
-    data['seeking_talent']=False
-    data['website']=request.form.get('website_link')
-    data['seeking_description']=request.form.get('seeking_description')
 
     if request.form.get('seeking_talent')=='y':
-      data['seeking_talent']=True
+      data['seeking_venue']=True
     else:
-      data['seeking_talent']=False
+      data['seeking_venue']=False
 
-    venue = Venue(name=data['name'],
-                  city=data['city'],
-                  state=data['state'],
-                  address=data['address'],
-                  phone=data['phone'],
-                  image_link=data['image_link'],
-                  facebook_link=data['facebook_link'],
+    venue = Venue(name=request.form.get('name'),
+                  city=request.form.get('city'),
+                  state=request.form.get('state'),
+                  address=request.form.get('address'),
+                  phone=request.form.get('phone'),
+                  image_link=request.form.get('image_link'),
+                  facebook_link=request.form.get('facebook_link'),
                   seeking_talent=data['seeking_talent'],
-                  website_link=data['website_link'],
-                  seeking_description=data['seeking_description'])
-     
+                  website_link=request.form.get('website_link'),
+                  seeking_description=request.form.get('seeking_description'))
+
+    for genre in request.form.getlist('genres'):
+      genre_set = GenreAssignment(venue_id=venue.id, genre=genre)
+      db.session.add(genre_set)
+
     db.session.add(venue)
     db.session.commit()
 
@@ -348,8 +343,20 @@ def delete_venue(venue_id):
   # TODO: Complete this endpoint for taking a venue_id, and using
   # SQLAlchemy ORM to delete a record. Handle cases where the session commit could fail.
 
+  print("Deleting venue with ID %s" % venue_id)
+
   try:
     venue = Venue.query.get(venue_id)
+
+    genre_assignments = GenreAssignment.query.filter(
+      GenreAssignment.venue_id==venue_id)
+    for genre_assignment in genre_assignments:
+      db.session.delete(genre_assignment)
+    
+    shows = Show.query.filter(Show.venue_id==venue_id)
+    for show in shows:
+      db.session.delete(show)
+
     db.session.delete(venue)
     db.session.commit()
   except:
@@ -361,7 +368,7 @@ def delete_venue(venue_id):
 
   # BONUS CHALLENGE: Implement a button to delete a Venue on a Venue Page, have it so that
   # clicking that button delete it from the db then redirect the user to the homepage
-  return None
+  return render_template('pages/home.html')
 
 #  Artists
 #  ----------------------------------------------------------------
@@ -450,14 +457,19 @@ def show_artist(artist_id):
       GenreAssignment.artist_id==artist_id)
     genres=[]
     for genre_assignment in genre_assignments:
-      genres.append(genre_assignment.genre)
+      genres.append(genre_assignment.genre.value)
     data["genres"] = genres
     data["city"]=artist.city
     data["state"]=artist.state
     data["phone"]=artist.phone
     data["website_link"]=artist.website_link
     data["facebook_link"]=artist.facebook_link
-    data["seeking_venue"]=artist.seeking_venue
+    print(artist.seeking_venue)
+    if artist.seeking_venue:
+      data["seeking_venue"] = True
+    else: 
+      # data["seeking_venue"] = False
+      pass
     data["seeking_description"]=artist.seeking_description
     data["image_link"]=artist.image_link
 
@@ -518,7 +530,8 @@ def edit_artist_submission(artist_id):
   # TODO: take values from the form submitted, and update existing
   # artist record with ID <artist_id> using the new attributes
   try:
-    if request.form.get('seeking_talent')=='y':
+    print(request.form.get('seeking_venue'))
+    if request.form.get('seeking_venue')=='y':
       seeking_venue=True
     else:
       seeking_venue=False
@@ -531,14 +544,14 @@ def edit_artist_submission(artist_id):
     artist.image_link=request.form.get('image_link')
     artist.facebook_link=request.form.get('facebook_link')
     artist.website_link=request.form.get('website_link')
-    artist.seeking_venue=request.form.get(seeking_venue)
+    artist.seeking_venue=seeking_venue
     artist.seeking_description=request.form.get('seeking_description')
 
     GenreAssignment.query.filter(
       GenreAssignment.artist_id==artist_id).delete()
 
     for genre in request.form.getlist('genres'):
-      genre_set = GenreAssignment(artist=artist, genre=Genre(genre))
+      genre_set = GenreAssignment(artist=artist, genre=genre)
       db.session.add(genre_set)
 
     db.session.commit()
@@ -574,9 +587,9 @@ def edit_venue_submission(venue_id):
 
   try:
     if request.form.get('seeking_talent')=='y':
-      seeking_venue=True
+      seeking_talent=True
     else:
-      seeking_venue=False
+      seeking_talent=False
 
     venue=Venue.query.get(venue_id)
     venue.name=request.form.get('name')
@@ -586,14 +599,14 @@ def edit_venue_submission(venue_id):
     venue.image_link=request.form.get('image_link')
     venue.facebook_link=request.form.get('facebook_link')
     venue.website_link=request.form.get('website_link')
-    venue.seeking_venue=request.form.get(seeking_venue)
+    venue.seeking_talent=seeking_talent
     venue.seeking_description=request.form.get('seeking_description')
 
     GenreAssignment.query.filter(
       GenreAssignment.venue_id==venue_id).delete()
-    
+
     for genre in request.form.getlist('genres'):
-      genre_set = GenreAssignment(venue_id=venue_id, genre=Genre(genre))
+      genre_set = GenreAssignment(venue_id=venue_id, genre=genre)
       db.session.add(genre_set)
 
     db.session.commit()
@@ -623,7 +636,7 @@ def create_artist_submission():
   # TODO: modify data to be the data object returned from db insertion
 
   try:
-    if request.form.get('seeking_talent')=='y':
+    if request.form.get('seeking_venue')=='y':
       seeking_venue=True
     else:
       seeking_venue=False
@@ -635,13 +648,13 @@ def create_artist_submission():
                   image_link=request.form.get('image_link'),
                   facebook_link=request.form.get('facebook_link'),
                   website_link=request.form.get('website_link'),
-                  seeking_venue=request.form.get(seeking_venue),
+                  seeking_venue=seeking_venue,
                   seeking_description=request.form.get('seeking_description'))
     
     db.session.add(artist)
 
     for genre in request.form.getlist('genres'):
-      genre_set = GenreAssignment(artist=artist, genre=Genre(genre))
+      genre_set = GenreAssignment(artist=artist, genre=genre)
       db.session.add(genre_set)
     db.session.commit()
 
@@ -657,6 +670,33 @@ def create_artist_submission():
   # e.g., flash('An error occurred. Artist ' + data.name + ' could not be listed.')
   return render_template('pages/home.html')
 
+@app.route('/artists/<artist_id>', methods=['DELETE'])
+def delete_artist(artist_id):
+  # TODO: Complete this endpoint for taking a venue_id, and using
+  # SQLAlchemy ORM to delete a record. Handle cases where the session commit could fail.
+
+  try:
+    artist = Artist.query.get(artist_id)
+    
+    genre_assignments = GenreAssignment.query.filter(
+      GenreAssignment.venue_id==artist_id)
+    for genre_assignment in genre_assignments:
+      db.session.delete(genre_assignment)
+
+    shows = Show.query.filter(Show.artist_id==artist_id)
+    for show in shows:
+      print("Deleting show %s" % show.id)
+      db.session.delete(show)
+
+    db.session.delete(artist)
+    db.session.commit()
+  except:
+     db.session.rollback()
+     print(sys.exc_info())
+  finally:
+     db.session.close()
+  
+  return render_template('pages/home.html')
 
 #  Shows
 #  ----------------------------------------------------------------
@@ -722,6 +762,7 @@ def create_show_submission():
      flash('Show was not successfully listed!')
 
   return render_template('pages/home.html')
+
 
 @app.errorhandler(404)
 def not_found_error(error):

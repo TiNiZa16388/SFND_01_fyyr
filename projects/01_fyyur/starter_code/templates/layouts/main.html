@@ -118,5 +118,24 @@
   <script type="text/javascript" src="/static/js/libs/bootstrap-3.1.1.min.js" defer></script>
   <script type="text/javascript" src="/static/js/plugins.js" defer></script>
 
+  <script>
+    const deleteBtnArtist = document.getElementById("delete-artist-button");
+    deleteBtnArtist.onclick = function(e) {
+	  const artist_id = e.target.dataset['id'];
+      fetch('/artists/'+artist_id, {
+        method: "DELETE"
+      })
+    }
+  </script>
+  <script>
+    const deleteBtnVenue = document.getElementById("delete-venue-button");
+    deleteBtnVenue.onclick = function(e) {
+	  const venue_id = e.target.dataset['id'];
+      fetch('/venues/'+venue_id, {
+        method: "DELETE"
+      })
+    }
+  </script>
+
 </body>
 </html>

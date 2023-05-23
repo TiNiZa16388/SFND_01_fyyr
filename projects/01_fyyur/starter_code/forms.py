@@ -25,7 +25,7 @@ class Genre(enum.Enum):
   PUNK='Punk'
   RANDB='R&B'
   REGGAE='Reggae'
-  ROCK_N_ROLL='Rock n Roll'
+  ROCK_N_ROLL='Rock N Roll'
   SOUL='Soul'
   OTHER='Other'
 
@@ -134,7 +134,7 @@ class VenueForm(Form):
     genres = SelectMultipleField(
         # TODO implement enum restriction
         'genres', validators=[DataRequired()],
-        choices=[(gName.capitalize(), gMember.value) for gName, gMember in Genre.__members__.items()]
+        choices=[(gName, gMember.value) for gName, gMember in Genre.__members__.items()]
     )
     facebook_link = StringField(
         'facebook_link', validators=[URL()]
@@ -228,7 +228,7 @@ class ArtistForm(Form):
     genres = SelectMultipleField(
         # TODO? implementing enum restriction
         'genres', validators=[DataRequired()],
-        choices=[(gName.capitalize(), gMember.value) for gName, gMember in Genre.__members__.items()]
+        choices=[(gName, gMember.value) for gName, gMember in Genre.__members__.items()]
      )
     facebook_link = StringField(
         # TODO implement enum restriction
