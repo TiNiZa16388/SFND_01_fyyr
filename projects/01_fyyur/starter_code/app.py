@@ -160,9 +160,11 @@ def search_venues():
   try: 
      # Find venues suiting to search term
      search_term = request.form.get('search_term')
-     listOfVenues = db.session.query(Venue).filter(Venue.name.ilike('%'+search_term+'%'))        
+     listOfVenues = db.session.query(Venue).filter(
+       Venue.name.ilike('%'+search_term+'%'))        
      # Determine amount of suitable venues
      ListOfVenues_Count = listOfVenues.count()
+     print('ListOfVenues_Count = %s'%listOfVenues.count())
 
      data = []
      for ven in listOfVenues:       
@@ -174,11 +176,12 @@ def search_venues():
                 'num_upcoming_shows': amount_of_upcoming_shows}
        data.append(elemnt)
 
-       response={
-        "count": ListOfVenues_Count,
-        "data": data
-       }
+     response={
+       "count": ListOfVenues_Count,
+       "data": data
+     }
   except:
+    print('Error detected')
     db.session.close()
     print(sys.exc_info)
     response={
@@ -474,11 +477,15 @@ def show_artist(artist_id):
     data["image_link"]=artist.image_link
 
     # date time data for past shows
-    past_shows = db.session.query(Show).filter(
-      (Show.venue_id==artist.id)).filter(
-       (Show.start_time<datetime.now()))
+    past_shows_query = db.session.query(Show).join(Artist).filter(
+      Show.artist_id==artist_id).filter(
+        Show.start_time<datetime.now()).all()
+
+    # past_shows_query = db.session.query(Show).filter(
+    #  (Show.venue_id==artist.id)).filter(
+    #   (Show.start_time<datetime.now()))
     past_shows_array=[]
-    for show in past_shows:
+    for show in past_shows_query:
       elmnt={
         "venue_image_link":Venue.query.get(show.venue_id).image_link,
         "venue_id":show.venue_id,
@@ -487,14 +494,25 @@ def show_artist(artist_id):
             show.start_time.strftime("%y-%m-%d %H:%M:%S"))}
       past_shows_array.append(elmnt)
     data["past_shows"] = past_shows_array
-    data["past_shows_count"] = past_shows.count()
+    print(past_shows_array)
+    data["past_shows_count"] = len(past_shows_array)
+
+    upcoming_shows_query = db.session.query(Show).join(Artist).filter(Show.artist_id==artist_id).filter(Show.start_time>datetime.now()).all()
+
+    # print(upcoming_shows_query)
 
     # date time data for upcoming shows
-    upcoming_shows = db.session.query(Show).filter(
-      (Show.artist_id==artist.id)).filter(
-       (Show.start_time>datetime.now()))
+    # upcoming_shows_query = db.session.query(Show).filter(
+    #  (Show.artist_id==artist.id)).filter(
+    #   (Show.start_time>datetime.now()))
     upcoming_shows_array=[]
-    for show in upcoming_shows:
+    for show in upcoming_shows_query:
+      print('show.artist_id:%s'%show.artist_id)
+      print('"venue_image_link":%s'%Venue.query.get(show.venue_id).image_link)
+      print('"venue_id":%s'%show.venue_id)
+      print('"venue_name":%s'%Venue.query.get(show.venue_id).name)
+      print('"start_time":%s'%format_datetime(
+            show.start_time.strftime("%y-%m-%d %H:%M:%S")))
       elmnt={
         "venue_image_link":Venue.query.get(show.venue_id).image_link,
         "venue_id":show.venue_id,
@@ -503,7 +521,7 @@ def show_artist(artist_id):
           show.start_time.strftime("%y-%m-%d %H:%M:%S"))}
       upcoming_shows_array.append(elmnt)
     data["upcoming_shows"] = upcoming_shows_array
-    data["upcoming_shows_count"] = upcoming_shows.count()
+    data["upcoming_shows_count"] = len(upcoming_shows_array)
 
   except:
      db.session.close()
@@ -711,7 +729,7 @@ def shows():
     data=[]
     for show in shows:
       elment={
-          "venue_id":show.id,
+          "venue_id":show.venue_id,
           "venue_name":Venue.query.get(show.venue.id).name,
           "artist_id":show.artist_id,
           "artist_name":Artist.query.get(show.artist.id).name,
@@ -723,11 +741,11 @@ def shows():
   except:
      print(sys.exc_info)
      data=[{
-          "venue_id":"test",
-          "venue_name":"test",
-          "artist_id":"test",
-          "artist_name":"test",
-          "artist_image_link":"test",
+          "venue_id":"",
+          "venue_name":"",
+          "artist_id":"",
+          "artist_name":"",
+          "artist_image_link":"",
           "start_time":format_datetime(datetime.now().strftime("%y-%m-%d %H:%M:%S"))
      }]
 
